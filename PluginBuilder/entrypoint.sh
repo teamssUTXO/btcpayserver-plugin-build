@@ -30,7 +30,7 @@ dotnet publish "${ASSEMBLY_NAME}" -c "${BUILD_CONFIG}" -o "/tmp/publish"
 ASSEMBLY_NAME="${ASSEMBLY_NAME/.csproj/}"
 
 # PluginPacker crash because of no gpg, but we don't use it anyway...
-/build-tools/PluginPacker/BTCPayServer.PluginPacker "/tmp/publish" "${ASSEMBLY_NAME}" "/tmp/publish-package" || true
+/build-tools/PluginPacker/BTCPayServer.PluginPacker "/tmp/publish" "${ASSEMBLY_NAME}" "/tmp/publish-package" 2>&1 | grep -v "gpg:" >&2 || true
 cp /tmp/publish-package/*/*/* /out
 rm /out/SHA256SUMS.asc /out/SHA256SUMS
 
