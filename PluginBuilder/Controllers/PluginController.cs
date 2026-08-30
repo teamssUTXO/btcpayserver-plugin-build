@@ -94,7 +94,8 @@ public class PluginController(
 
             if (!settingViewModel.VideoUrl.IsSupportedVideoUrl())
             {
-                ModelState.AddModelError(nameof(settingViewModel.VideoUrl), "Video URL must be from a supported platform (YouTube, Vimeo)");
+                ModelState.AddModelError(nameof(settingViewModel.VideoUrl),
+                    "Video URL must be a YouTube or Vimeo link pointing at a video, or a direct link to a video file");
                 return View(settingViewModel);
             }
         }

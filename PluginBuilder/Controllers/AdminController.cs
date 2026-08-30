@@ -195,7 +195,7 @@ public class AdminController(
             if (!model.PluginSettings.VideoUrl.IsSupportedVideoUrl())
             {
                 ModelState.AddModelError($"{nameof(PluginEditViewModel.PluginSettings)}.{nameof(PluginSettings.VideoUrl)}",
-                    "Video URL must be from a supported platform (YouTube, Vimeo).");
+                    "Video URL must be a direct link to a video.");
                 await PopulatePluginEditViewModel(conn, pluginSlug, model);
                 return View(model);
             }
