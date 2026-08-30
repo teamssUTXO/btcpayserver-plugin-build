@@ -48,6 +48,7 @@ public class ServerTester : IAsyncDisposable
     public bool ReuseDatabase { get; set; } = true;
     public bool CheatMode { get; set; }
     public bool EnableLocalArtifactDownloadProxy { get; set; }
+    public int? BuildTimeoutSeconds { get; set; }
 
     public async ValueTask DisposeAsync()
     {
@@ -103,17 +104,22 @@ public class ServerTester : IAsyncDisposable
         Program host = new();
         var projectDir = FindPluginBuilderDirectory();
 
+        List<string> args =
+        [
+            "--urls=http://127.0.0.1:0",
+            $"--postgres={connStr}",
+            $"--storage_connection_string={StorageConnectionString}",
+            $"--cheat_mode={CheatMode.ToString().ToLowerInvariant()}",
+            $"--enable_local_artifact_download_proxy={EnableLocalArtifactDownloadProxy.ToString().ToLowerInvariant()}"
+        ];
+        if (BuildTimeoutSeconds is not null)
+            args.Add($"--build_timeout_seconds={BuildTimeoutSeconds}");
+
         var webappBuilder = host.CreateWebApplicationBuilder(new WebApplicationOptions
         {
             ContentRootPath = projectDir,
             WebRootPath = Path.Combine(projectDir, "wwwroot"),
-            Args = [
-                "--urls=http://127.0.0.1:0",
-                $"--postgres={connStr}",
-                $"--storage_connection_string={StorageConnectionString}",
-                $"--cheat_mode={CheatMode.ToString().ToLowerInvariant()}",
-                $"--enable_local_artifact_download_proxy={EnableLocalArtifactDownloadProxy.ToString().ToLowerInvariant()}",
-            ]
+            Args = args.ToArray()
         });
 
         // Added after the app's AddEnvironmentVariables("PB_") so it wins over any ambient PB_CHEAT_MODE,
@@ -140,9 +146,6 @@ public class ServerTester : IAsyncDisposable
         var address = webapp.Urls.First();
         Port = new Uri(address).Port;
         Logs.LogInformation("Server started on port {Port}", Port);
-
-        await using var conn = await GetService<DBConnectionFactory>().Open();
-        await conn.ReloadTypesAsync();
     }
 
     public HttpClient CreateHttpClient()

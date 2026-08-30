@@ -1,10 +1,16 @@
+using System.Globalization;
 using Serilog.Events;
+using PluginBuilder.Util.Extensions;
 
 namespace PluginBuilder.Configuration;
 
 public sealed class PluginBuilderOptions
 {
+    private const int DefaultBuildTimeoutSeconds = 15 * 60;
+    private const int MaxBuildTimeoutSeconds = 24 * 60 * 60;
+
     public required string DataDir { get; init; }
+    public TimeSpan BuildTimeout { get; init; } = TimeSpan.FromSeconds(DefaultBuildTimeoutSeconds);
     public string? DebugLogFile { get; init; }
     public LogEventLevel? DebugLogLevel { get; init; }
     public int LogRetainCount { get; init; } = 1;
@@ -41,10 +47,18 @@ public sealed class PluginBuilderOptions
         if (int.TryParse(retainRaw, out var retainParsed) && retainParsed > 0)
             retain = retainParsed;
 
+        var buildTimeoutSeconds = DefaultBuildTimeoutSeconds;
+        var buildTimeoutRaw = conf["BUILD_TIMEOUT_SECONDS"];
+        if (!string.IsNullOrWhiteSpace(buildTimeoutRaw) &&
+            (!int.TryParse(buildTimeoutRaw, NumberStyles.None, CultureInfo.InvariantCulture, out buildTimeoutSeconds) ||
+             buildTimeoutSeconds is <= 0 or > MaxBuildTimeoutSeconds))
+            throw new ConfigurationException("BUILD_TIMEOUT_SECONDS",
+                $"Must be a positive integer no greater than {MaxBuildTimeoutSeconds}");
 
         return new PluginBuilderOptions
         {
             DataDir = dataDir,
+            BuildTimeout = TimeSpan.FromSeconds(buildTimeoutSeconds),
             DebugLogFile = logFile,
             DebugLogLevel = level,
             LogRetainCount = retain

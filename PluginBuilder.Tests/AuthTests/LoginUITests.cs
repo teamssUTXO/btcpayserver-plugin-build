@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
 using Xunit;
 using Xunit.Abstractions;
@@ -24,7 +25,7 @@ public class LoginPageTests(ITestOutputHelper output) : PageTest
     }
 
     [Fact]
-    public async Task Login_Succeeds_With_ValidPassword()
+    public async Task Login_AndProtectedLogout_Succeed()
     {
         await using var tester = new PlaywrightTester(_log);
         tester.Server.ReuseDatabase = false;
@@ -32,9 +33,26 @@ public class LoginPageTests(ITestOutputHelper output) : PageTest
 
         await tester.GoToUrl("/register");
         var email = await tester.RegisterNewUser();
-        await Expect(tester.Page!).ToHaveURLAsync(new Regex(".*/dashboard$", RegexOptions.IgnoreCase));
+        var page = Assert.IsAssignableFrom<IPage>(tester.Page);
+        await Expect(page).ToHaveURLAsync(new Regex(".*/dashboard$", RegexOptions.IgnoreCase));
+
+        var logoutUrl = new Uri(tester.ServerUri!, "/logout").ToString();
+        var getResponse = await page.Context.APIRequest.GetAsync(logoutUrl);
+        Assert.Equal(405, getResponse.Status);
+
+        var postWithoutTokenResponse = await page.Context.APIRequest.PostAsync(logoutUrl);
+        Assert.Equal(400, postWithoutTokenResponse.Status);
+
+        await tester.GoToUrl("/dashboard");
+        await Expect(page).ToHaveURLAsync(new Regex(".*/dashboard$", RegexOptions.IgnoreCase));
+
         await tester.Logout();
+        await Expect(page).ToHaveURLAsync(new Regex(".*/login$", RegexOptions.IgnoreCase));
+
+        await tester.GoToUrl("/dashboard");
+        Assert.Equal("/login", new Uri(page.Url).AbsolutePath);
+
         await tester.LogIn(email);
-        await Expect(tester.Page!).ToHaveURLAsync(new Regex(".*/dashboard$", RegexOptions.IgnoreCase));
+        await Expect(page).ToHaveURLAsync(new Regex(".*/dashboard$", RegexOptions.IgnoreCase));
     }
 }

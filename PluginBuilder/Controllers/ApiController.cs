@@ -144,6 +144,62 @@ public class ApiController(
     }
 
     [AllowAnonymous]
+    [HttpGet("plugins/directory/{pluginSlug}")]
+    [EnableRateLimiting(Policies.PublicApiRateLimit)]
+    public async Task<IActionResult> GetDirectoryPluginBySlug(
+        string pluginSlug,
+        [ModelBinder(typeof(BtcPayHostVersionModelBinder))]
+        PluginVersion? btcpayVersion = null,
+        bool? includePreRelease = null)
+    {
+        if (!PluginSlug.TryParse(pluginSlug, out var parsedPluginSlug))
+        {
+            ModelState.AddModelError(nameof(pluginSlug), "Invalid plugin slug");
+            return ValidationProblem(ModelState);
+        }
+
+        includePreRelease ??= false;
+        await using var conn = await connectionFactory.Open();
+
+        var query = """
+                    SELECT lv.plugin_slug, lv.ver, p.settings, b.id, b.manifest_info, b.build_info,
+                           v.btcpay_min_ver,
+                           v.btcpay_max_ver,
+                           v.signatureproof->>'fingerprint' AS fingerprint,
+                           v.changelog
+                    FROM get_latest_versions(@btcpayVersion, @includePreRelease) lv
+                    JOIN versions v ON v.plugin_slug = lv.plugin_slug AND v.ver = lv.ver
+                    JOIN builds b ON b.plugin_slug = lv.plugin_slug AND b.id = lv.build_id
+                    JOIN plugins p ON b.plugin_slug = p.slug
+                    WHERE p.slug = @pluginSlug
+                      AND p.visibility IN ('listed', 'unlisted')
+                      AND b.build_info IS NOT NULL
+                      AND b.manifest_info IS NOT NULL
+                    LIMIT 1
+                    """;
+
+        var row =
+            await conn.QueryFirstOrDefaultAsync<(string plugin_slug, int[] ver, string settings, long id, string manifest_info, string build_info,
+                int[] btcpay_min_ver, int[]? btcpay_max_ver, string? fingerprint, string? changelog)?>(
+                query,
+                new
+                {
+                    btcpayVersion = btcpayVersion?.VersionParts,
+                    includePreRelease = includePreRelease.Value,
+                    pluginSlug = parsedPluginSlug.ToString()
+                });
+
+        if (row is null)
+            return NotFound();
+
+        var r = row.Value;
+        var manifestInfo = JObject.Parse(r.manifest_info);
+        var settings = SafeJson.Deserialize<PluginSettings>((string?)r.settings);
+        return Ok(CreatePublishedVersion(r.plugin_slug, r.ver, r.btcpay_min_ver, r.btcpay_max_ver, r.id, settings, manifestInfo,
+            JObject.Parse(r.build_info), r.fingerprint, r.changelog));
+    }
+
+    [AllowAnonymous]
     [HttpGet("plugins/{identifier}")]
     [EnableRateLimiting(Policies.PublicApiRateLimit)]
     public async Task<IActionResult> GetPluginVersionsForDownload(

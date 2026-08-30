@@ -5,6 +5,7 @@ using PluginBuilder.DataModels;
 using PluginBuilder.Services;
 using PluginBuilder.Util;
 using PluginBuilder.Util.Extensions;
+using PluginBuilder.ViewModels;
 using PluginBuilder.ViewModels.Account;
 
 namespace PluginBuilder.Controllers;
@@ -21,6 +22,8 @@ public class AccountController(
     ILogger<AccountController> logger)
     : Controller
 {
+    private const int MaxAccountDetailsRequestBodyLength = PgpKeyViewModel.MaxArmouredPublicKeyLength * 4;
+
     [HttpGet("verifyemail")]
     public async Task<IActionResult> VerifyEmail()
     {
@@ -79,6 +82,7 @@ public class AccountController(
     }
 
     [HttpPost("details")]
+    [RequestSizeLimit(MaxAccountDetailsRequestBodyLength)]
     public async Task<IActionResult> AccountDetails(AccountDetailsViewModel model)
     {
         if (!ModelState.IsValid)
@@ -93,7 +97,7 @@ public class AccountController(
         accountSettings.Email = model.Settings.Email;
         if (!string.IsNullOrEmpty(model.Settings.GPGKey?.PublicKey))
         {
-            var isPublicKeyValid = _gpgService.ValidateArmouredPublicKey(model.Settings.GPGKey.PublicKey.Trim(), out var message, out var keyViewModel);
+            var isPublicKeyValid = _gpgService.ValidateArmouredPublicKey(model.Settings.GPGKey.PublicKey, out var message, out var keyViewModel);
             if (!isPublicKeyValid)
             {
                 TempData[TempDataConstant.WarningMessage] = $"GPG Key is not valid: {message}";

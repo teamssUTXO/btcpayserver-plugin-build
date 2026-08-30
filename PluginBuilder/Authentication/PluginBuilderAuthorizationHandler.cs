@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using PluginBuilder.ModelBinders;
 using PluginBuilder.Services;
 using PluginBuilder.Util.Extensions;
 
@@ -25,7 +26,7 @@ public class PluginBuilderAuthorizationHandler : AuthorizationHandler<OwnPluginR
         var slug = context.Resource as PluginSlug;
         if (slug is null)
         {
-            if (httpContext?.GetRouteData().Values.TryGetValue("pluginSlug", out v) is not true)
+            if (httpContext?.GetRouteData().Values.TryGetValue(PluginSlugModelBinder.PluginSlugRouteKey, out v) is not true)
                 return;
             if (v is not string v2 || !PluginSelectorBySlug.TryParse(v2, out var slugSelector))
             {

@@ -135,6 +135,67 @@
         }
       }
     },
+    "/plugins/directory/{pluginSlug}": {
+      "get": {
+        "tags": ["Plugins"],
+        "summary": "Get a Directory plugin by slug",
+        "description": "Returns the latest published version compatible with the requested BTCPay Server version for an exact Plugin Directory slug. Listed and unlisted plugins are available; hidden plugins are not returned.",
+        "operationId": "getDirectoryPluginBySlug",
+        "parameters": [
+          {
+            "name": "pluginSlug",
+            "in": "path",
+            "description": "The exact plugin slug (e.g. `lnbank`).",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "lnbank"
+            }
+          },
+          {
+            "name": "btcpayVersion",
+            "in": "query",
+            "description": "Filter by BTCPay Server version compatibility.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "2.2.1"
+            }
+          },
+          {
+            "name": "includePreRelease",
+            "in": "query",
+            "description": "Include pre-release versions.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest compatible published version for the plugin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedVersion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid plugin slug or query parameter"
+          },
+          "404": {
+            "description": "Plugin not found or no compatible published version is available"
+          },
+          "429": {
+            "description": "Too many requests"
+          }
+        }
+      }
+    },
     "/plugins/{identifier}": {
       "get": {
         "tags": ["Plugins"],

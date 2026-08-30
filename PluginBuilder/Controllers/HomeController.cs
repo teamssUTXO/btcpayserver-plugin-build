@@ -93,7 +93,7 @@ public class HomeController(
         return View("Views/Plugin/Dashboard", vm);
     }
 
-    [HttpGet("/logout")]
+    [HttpPost("/logout")]
     public async Task<IActionResult> Logout()
     {
         await signInManager.SignOutAsync();
@@ -843,7 +843,7 @@ public class HomeController(
             var callbackUrl = Url.Action(nameof(PasswordReset), "Home",
                 new { email = user.Email, code }, Request.Scheme);
 
-            await emailService.ResetPasswordEmail(model.Email, callbackUrl!);
+            await emailService.ResetPasswordEmail(user.Email!, callbackUrl!);
         }
 
         model.FormSubmitted = true;

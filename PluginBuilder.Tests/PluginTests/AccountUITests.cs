@@ -1,9 +1,11 @@
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Playwright.Xunit;
 using PluginBuilder.DataModels;
 using PluginBuilder.Services;
 using PluginBuilder.Tests.TestData;
 using PluginBuilder.Util.Extensions;
+using PluginBuilder.ViewModels;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -14,6 +16,63 @@ public class AccountUITests(ITestOutputHelper output) : PageTest
 {
     private readonly XUnitLogger _log = new("AccountProfileTests", output);
 
+    [Fact]
+    public async Task AccountDetailsPostRejectsOversizedRequestBody()
+    {
+        await using var t = new PlaywrightTester(_log) { Server = { ReuseDatabase = false } };
+        await t.StartAsync();
+
+        var email = $"account-limit-{Guid.NewGuid():N}@test.com";
+        var userId = await t.Server.CreateFakeUserAsync(email);
+        await t.LogIn(email);
+        await t.GoToUrl("/account/details");
+
+        const string submitAccountDetails =
+            """
+            async ([twitter, publicKey, paddingLength]) => {
+                const form = document.getElementById("Save").form;
+                const formData = new FormData(form);
+                formData.set("Settings.Twitter", twitter);
+                formData.set("Settings.GPGKey.PublicKey", publicKey);
+                if (paddingLength > 0)
+                    formData.set("RequestPadding", "x".repeat(paddingLength));
+
+                try {
+                    const response = await fetch(form.action, { method: "POST", body: formData });
+                    return response.status;
+                } catch {
+                    return -1;
+                }
+            }
+            """;
+
+        const string savedTwitter = "https://twitter.com/saved";
+        var normalStatus = await t.Page!.EvaluateAsync<int>(
+            submitAccountDetails,
+            new object[] { savedTwitter, GpgTestData.SamplePublicKey, 0 });
+        Assert.InRange(normalStatus, 200, 299);
+
+        await using var conn = await t.Server.GetService<DBConnectionFactory>().Open();
+        var savedSettings = await conn.GetAccountDetailSettings(userId);
+        Assert.Equal(savedTwitter, savedSettings?.Twitter);
+        Assert.NotNull(savedSettings?.GPGKey);
+
+        const string rejectedTwitter = "https://twitter.com/should-not-save";
+        const int oversizedPaddingLength = PgpKeyViewModel.MaxArmouredPublicKeyLength * 4;
+        var oversizedStatus = await t.Page.EvaluateAsync<int>(
+            submitAccountDetails,
+            new object[] { rejectedTwitter, GpgTestData.SamplePublicKey, oversizedPaddingLength });
+
+        Assert.True(
+            oversizedStatus is -1 or 0 or StatusCodes.Status400BadRequest or StatusCodes.Status413PayloadTooLarge,
+            $"Oversized account details request returned unexpected HTTP status {oversizedStatus}.");
+
+        var settingsAfterOversizedPost = await conn.GetAccountDetailSettings(userId);
+        Assert.Equal(savedTwitter, settingsAfterOversizedPost?.Twitter);
+
+        await t.GoToUrl("/account/details");
+        await t.AssertNoError();
+    }
 
     [Fact]
     public async Task Validate_GPG_Settings_Update_For_Release_Tests()

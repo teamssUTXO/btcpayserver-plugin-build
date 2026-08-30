@@ -40,6 +40,7 @@ public class DatabaseStartupHostedService : IHostedService
             await RunScripts(conn);
             await CleanupScript(conn);
 
+            await conn.ReloadTypesAsync(cancellationToken);
             await conn.SettingsInitialize();
             await _adminSettingsCache.RefreshAllAdminSettings(conn);
 

@@ -16,6 +16,7 @@ public class RateLimitTests(ITestOutputHelper logs) : UnitTestBase(logs)
     [Theory]
     [InlineData("/public/plugins", "GET")]
     [InlineData("/api/v1/plugins", "GET")]
+    [InlineData("/api/v1/plugins/directory/test-slug", "GET")]
     [InlineData("/public/plugins/any-slug", "GET")]
     [InlineData("/api/v1/plugins/test-identifier", "GET")]
     [InlineData("/api/v1/plugins/test-slug/versions/1.0.0", "GET")]

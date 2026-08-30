@@ -64,6 +64,7 @@ public class ProcessRunner
     public async Task<int> RunAsync(ProcessSpec processSpec, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(processSpec, nameof(processSpec));
+        cancellationToken.ThrowIfCancellationRequested();
 
         int exitCode;
 
@@ -72,8 +73,6 @@ public class ProcessRunner
         using (var process = CreateProcess(processSpec))
         using (ProcessState processState = new(process))
         {
-            cancellationToken.Register(() => processState.TryKill());
-
             var readOutput = false;
             var readError = false;
             if (processSpec.OutputCapture is not null)
@@ -126,6 +125,7 @@ public class ProcessRunner
 
             stopwatch.Start();
             process.Start();
+            using var cancellationRegistration = cancellationToken.Register(processState.TryKill);
 
             if (readOutput)
                 process.BeginOutputReadLine();
@@ -140,6 +140,7 @@ public class ProcessRunner
             }
 
             await processState.Task;
+            cancellationToken.ThrowIfCancellationRequested();
 
             exitCode = process.ExitCode;
             stopwatch.Stop();

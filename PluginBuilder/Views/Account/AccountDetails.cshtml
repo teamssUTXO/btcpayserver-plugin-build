@@ -133,6 +133,7 @@
 
                         <div id="reset-key-section" class="mt-3" style="display:none;">
 							<textarea asp-for="Settings.GPGKey!.PublicKey" class="form-control" rows="8"
+                                      maxlength="@PgpKeyViewModel.MaxArmouredPublicKeyLength"
                                       placeholder="Paste your armored GPG public key here..."></textarea>
                             <span asp-validation-for="Settings.GPGKey!.PublicKey" class="text-danger"></span>
                         </div>
@@ -140,6 +141,7 @@
                     else
                     {
                         <textarea asp-for="Settings.GPGKey!.PublicKey" class="form-control" rows="8"
+                                  maxlength="@PgpKeyViewModel.MaxArmouredPublicKeyLength"
                                   placeholder="Paste your armored GPG public key here..."></textarea>
                         <span asp-validation-for="Settings.GPGKey!.PublicKey" class="text-danger"></span>
                     }

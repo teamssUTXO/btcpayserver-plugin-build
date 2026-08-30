@@ -11,10 +11,12 @@ public class RequestListingViewModel
     public string ReleaseNote { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Telegram verification message is required.")]
+    [MaxLength(200)]
     [Display(Name = "Telegram Verification Message")]
     public string TelegramVerificationMessage { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "User reviews are required.")]
+    [MaxLength(2000)]
     [Display(Name = "User Reviews")]
     public string UserReviews { get; set; } = string.Empty;
     public bool HasRequests { get; set; }

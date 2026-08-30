@@ -20,17 +20,20 @@ public class PasswordResetTests(ITestOutputHelper output) : PageTest
     private static readonly Regex ResetLink = new(@"https?://\S+/passwordreset\S*", RegexOptions.IgnoreCase);
 
     [Fact]
-    public async Task ForgotPassword_SendsResetEmail_AndValidTokenResetsPassword()
+    public async Task ForgotPassword_SendsCanonicalResetEmail_AndValidTokenResetsPassword()
     {
         await using var tester = new PlaywrightTester(_log);
         tester.Server.ReuseDatabase = false;
         await tester.StartAsync();
 
         await tester.ConfigureMailpitSmtp();
-        var email = $"reset-{Guid.NewGuid():N}@test.com";
-        await tester.CreateConfirmedUser(email);
+        var canonicalEmail = $"Reset-Case-{Guid.NewGuid():N}@test.com";
+        var submittedEmail = canonicalEmail.ToLowerInvariant();
+        await tester.CreateConfirmedUser(canonicalEmail);
 
-        var message = await tester.Server.AssertHasEmail(ResetSubject, email, () => SubmitForgotPassword(tester, email));
+        var message = await tester.Server.AssertHasEmail(
+            ResetSubject, submittedEmail, () => SubmitForgotPassword(tester, submittedEmail));
+        Assert.Equal(canonicalEmail, Assert.Single(message.To).Address);
 
         var link = ResetLink.Match(message.Text);
         Assert.True(link.Success, $"No passwordreset link found in body:\n{message.Text}");
@@ -43,10 +46,10 @@ public class PasswordResetTests(ITestOutputHelper output) : PageTest
         await tester.Page.ClickAsync("#ResetPassword");
         await Expect(tester.Page).ToHaveURLAsync(new Regex(".*/login$", RegexOptions.IgnoreCase));
 
-        await tester.LogIn(email, newPassword);
+        await tester.LogIn(submittedEmail, newPassword);
         await Expect(tester.Page).ToHaveURLAsync(new Regex(".*/dashboard$", RegexOptions.IgnoreCase));
 
-        await tester.LogIn(email, "123456");
+        await tester.LogIn(submittedEmail, "123456");
         await Expect(tester.Page.Locator(".validation-summary-errors")).ToBeVisibleAsync();
     }
 

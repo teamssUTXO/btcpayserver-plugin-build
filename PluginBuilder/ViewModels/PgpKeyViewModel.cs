@@ -1,9 +1,16 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PluginBuilder.ViewModels;
 
 public class PgpKeyViewModel
 {
+    public const int MaxArmouredPublicKeyLength = 256 * 1024;
+    public const string PublicKeyTooLargeError = "GPG public key must not exceed 256 KiB.";
+
     public string? KeyId { get; set; }
     public string? Fingerprint { get; set; }
+
+    [MaxLength(MaxArmouredPublicKeyLength, ErrorMessage = PublicKeyTooLargeError)]
     public string? PublicKey { get; set; }
     public DateTimeOffset CreatedDate { get; set; }
     public DateTimeOffset AddedDate { get; set; }

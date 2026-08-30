@@ -190,9 +190,11 @@
                         </div>
                     </li>
                     <li class="border-top py-1 px-3">
-                        <a asp-area="" asp-controller="Home" asp-action="Logout" class="nav-link text-danger" id="Nav-Logout">
-                            <span>Logout</span>
-                        </a>
+                        <form asp-area="" asp-controller="Home" asp-action="Logout" method="post" asp-antiforgery="true">
+                            <button type="submit" class="nav-link text-danger border-0 bg-transparent text-start w-100" id="Nav-Logout">
+                                <span>Logout</span>
+                            </button>
+                        </form>
                     </li>
                 </ul>
             </li>

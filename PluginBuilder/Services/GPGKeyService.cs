@@ -13,8 +13,14 @@ public class GPGKeyService(DBConnectionFactory connectionFactory)
 {
     public bool ValidateArmouredPublicKey(string publicKey, out string message, out PgpKeyViewModel? vm)
     {
-        publicKey = publicKey.Trim();
         vm = null;
+        if (publicKey.Length > PgpKeyViewModel.MaxArmouredPublicKeyLength)
+        {
+            message = PgpKeyViewModel.PublicKeyTooLargeError;
+            return false;
+        }
+
+        publicKey = publicKey.Trim();
         if (publicKey.Contains("-----BEGIN PGP PRIVATE KEY BLOCK-----", StringComparison.OrdinalIgnoreCase))
         {
             message = "Private key block detected; upload only the public key";
@@ -54,7 +60,7 @@ public class GPGKeyService(DBConnectionFactory connectionFactory)
                     PublicKeyAlgorithmTag.RsaSign or
                     PublicKeyAlgorithmTag.Dsa or
                     PublicKeyAlgorithmTag.ECDsa or
-                    PublicKeyAlgorithmTag.EdDsa => true,
+                    PublicKeyAlgorithmTag.EdDsa_Legacy => true,
                 _ => false
             };
             if (!canSign)
@@ -69,7 +75,7 @@ public class GPGKeyService(DBConnectionFactory connectionFactory)
                 return false;
             }
 
-            if (key.IsRevoked() || key.GetSignatures().Any(sig => sig.SignatureType == PgpSignature.KeyRevocation))
+            if (key.HasRevocation() || key.GetSignatures().Any(sig => sig.SignatureType == PgpSignature.KeyRevocation))
             {
                 message = "Key is revoked";
                 return false;
@@ -105,6 +111,8 @@ public class GPGKeyService(DBConnectionFactory connectionFactory)
             var publicKey = await GetPluginOwnerPublicKeys(pluginslug, userId);
             if (string.IsNullOrEmpty(publicKey))
                 return new SignatureProofResponse(false, "No public keys found for this user. Kindly update your account profile with your GPG public key");
+            if (publicKey.Length > PgpKeyViewModel.MaxArmouredPublicKeyLength)
+                return new SignatureProofResponse(false, PgpKeyViewModel.PublicKeyTooLargeError);
 
             using var decodedStream = PgpUtilities.GetDecoderStream(new MemoryStream(signatureBytes));
 

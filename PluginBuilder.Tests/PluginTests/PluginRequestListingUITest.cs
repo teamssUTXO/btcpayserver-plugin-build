@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using Dapper;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,26 @@ public class PluginRequestListingUITest(ITestOutputHelper output) : PageTest
     public void TelegramVerificationMessageValidation_MatchesServerContract(string value, bool expected)
     {
         Assert.Equal(expected, RequestListingViewModel.IsValidTelegramVerificationMessage(value));
+    }
+
+    [Theory]
+    [InlineData(nameof(RequestListingViewModel.TelegramVerificationMessage), 200)]
+    [InlineData(nameof(RequestListingViewModel.UserReviews), 2000)]
+    public void RequestListingValidation_EnforcesTextFieldMaxLength(string propertyName, int maxLength)
+    {
+        var model = new RequestListingViewModel
+        {
+            ReleaseNote = "Release note",
+            TelegramVerificationMessage = "https://t.me/btcpayserver/1234",
+            UserReviews = "https://example.com/review"
+        };
+
+        SetTextField(model, propertyName, maxLength);
+        Assert.True(Validate(model, out _));
+
+        SetTextField(model, propertyName, maxLength + 1);
+        Assert.False(Validate(model, out var validationResults));
+        Assert.Contains(validationResults, result => result.MemberNames.Contains(propertyName));
     }
 
     [Fact]
@@ -87,6 +108,8 @@ public class PluginRequestListingUITest(ITestOutputHelper output) : PageTest
         await Expect(t.Page.Locator("#ReleaseNote")).ToBeEditableAsync();
         await Expect(t.Page.Locator("#TelegramVerificationMessage")).ToBeEditableAsync();
         await Expect(t.Page.Locator("#UserReviews")).ToBeEditableAsync();
+        await Expect(t.Page.Locator("#TelegramVerificationMessage")).ToHaveAttributeAsync("maxlength", "200");
+        await Expect(t.Page.Locator("#UserReviews")).ToHaveAttributeAsync("maxlength", "2000");
         await Expect(t.Page.Locator("#AnnouncementDate")).ToBeEditableAsync();
         await t.Page!.ClickAsync("#StoreNav-Settings");
 
@@ -246,6 +269,19 @@ public class PluginRequestListingUITest(ITestOutputHelper output) : PageTest
         await Expect(t.Page.Locator("#TelegramVerificationMessage")).ToHaveAttributeAsync("aria-invalid", "false");
         await Expect(telegramFeedback).Not.ToBeVisibleAsync();
         await Expect(t.Page.Locator("#SubmitListing")).ToBeEnabledAsync();
+
+        const string telegramPrefix = "https://t.me/btcpayserver/";
+        var oversizedTelegramResponse = await PostListingRequest(
+            t.Page,
+            telegramVerificationMessage: telegramPrefix + new string('a', 201 - telegramPrefix.Length));
+        Assert.True(oversizedTelegramResponse.Ok);
+        Assert.Null(await conn.GetPendingListingRequestForPlugin(new PluginSlug(pluginSlug)));
+
+        var oversizedUserReviewsResponse = await PostListingRequest(
+            t.Page,
+            userReviews: new string('a', 2001));
+        Assert.True(oversizedUserReviewsResponse.Ok);
+        Assert.Null(await conn.GetPendingListingRequestForPlugin(new PluginSlug(pluginSlug)));
 
         await t.Page.FillAsync("#UserReviews", "");
         await Expect(t.Page.Locator("#request-form-status")).ToContainTextAsync("Incomplete");
@@ -505,7 +541,10 @@ public class PluginRequestListingUITest(ITestOutputHelper output) : PageTest
         Assert.Equal(PluginVisibilityEnum.Unlisted, plugin!.Visibility);
     }
 
-    private static async Task<IAPIResponse> PostListingRequest(IPage page)
+    private static async Task<IAPIResponse> PostListingRequest(
+        IPage page,
+        string telegramVerificationMessage = "https://t.me/btcpayserver/1234",
+        string userReviews = "https://example.com/review")
     {
         var form = page.Locator("#request-listing-form");
         var requestVerificationToken = await form
@@ -517,12 +556,30 @@ public class PluginRequestListingUITest(ITestOutputHelper output) : PageTest
         var formData = page.Context.APIRequest.CreateFormData();
         formData.Set("__RequestVerificationToken", requestVerificationToken);
         formData.Set("ReleaseNote", "Crafted release note");
-        formData.Set("TelegramVerificationMessage", "https://t.me/btcpayserver/1234");
-        formData.Set("UserReviews", "https://example.com/review");
+        formData.Set("TelegramVerificationMessage", telegramVerificationMessage);
+        formData.Set("UserReviews", userReviews);
 
         return await page.Context.APIRequest.PostAsync(
             new Uri(new Uri(page.Url), action).ToString(),
             new APIRequestContextOptions { Form = formData });
+    }
+
+    private static void SetTextField(RequestListingViewModel model, string propertyName, int length)
+    {
+        if (propertyName == nameof(RequestListingViewModel.TelegramVerificationMessage))
+        {
+            const string telegramPrefix = "https://t.me/btcpayserver/";
+            model.TelegramVerificationMessage = telegramPrefix + new string('a', length - telegramPrefix.Length);
+            return;
+        }
+
+        model.UserReviews = new string('a', length);
+    }
+
+    private static bool Validate(RequestListingViewModel model, out List<ValidationResult> validationResults)
+    {
+        validationResults = [];
+        return Validator.TryValidateObject(model, new ValidationContext(model), validationResults, true);
     }
 
 }

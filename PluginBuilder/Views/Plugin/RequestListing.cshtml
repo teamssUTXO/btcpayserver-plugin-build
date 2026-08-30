@@ -231,8 +231,10 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label asp-for="TelegramVerificationMessage" class="form-label" data-required></label>
-                            <input asp-for="TelegramVerificationMessage" type="url" class="form-control" required
+                            <label asp-for="TelegramVerificationMessage" class="form-label" data-required>
+                                Telegram Verification Message <span class="text-muted">(max 200 characters)</span>
+                            </label>
+                            <input asp-for="TelegramVerificationMessage" type="url" maxlength="200" class="form-control" required
                                    readonly="@formSubmitted"
                                    aria-describedby="telegram-verification-message-error" />
                             <span asp-validation-for="TelegramVerificationMessage" id="telegram-verification-message-error"
@@ -243,8 +245,10 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label asp-for="UserReviews" class="form-label" data-required></label>
-                            <textarea asp-for="UserReviews" class="form-control" rows="4" required
+                            <label asp-for="UserReviews" class="form-label" data-required>
+                                User Reviews <span class="text-muted">(max 2,000 characters)</span>
+                            </label>
+                            <textarea asp-for="UserReviews" class="form-control" rows="4" maxlength="2000" required
                                       readonly="@formSubmitted"></textarea>
                             <span asp-validation-for="UserReviews" class="text-danger"></span>
                             <div class="text-muted">Link at least one publicly posted review (Nostr, X, or user websites) from a reputable Bitcoiner who tested
