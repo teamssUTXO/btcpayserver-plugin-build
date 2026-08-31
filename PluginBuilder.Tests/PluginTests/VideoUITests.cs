@@ -311,7 +311,7 @@ public class VideoUITests(ITestOutputHelper output) : PageTest
 
         var platformError = t.Page.Locator("span[data-valmsg-for='VideoUrl']");
         await Expect(platformError).ToBeVisibleAsync();
-        await Expect(platformError).ToContainTextAsync(new Regex("youtube|vimeo", RegexOptions.IgnoreCase));
+        await Expect(platformError).ToContainTextAsync("YouTube or Vimeo");
     }
 
     [Fact]
