@@ -140,8 +140,15 @@ public class VideoUITests(ITestOutputHelper output) : PageTest
         Assert.Null(await video.GetAttributeAsync("src"));
         Assert.Equal(0, await t.Page.Locator("video[data-video-file] source").CountAsync());
 
-        await video.ClickAsync();
+        // The cover is what the visitor is meant to click: the native controls alone do not show that
+        // the player still has to fetch anything
+        var cover = t.Page.Locator("[data-video-cover]");
+        await Expect(cover).ToBeVisibleAsync();
+        await Expect(cover).ToContainTextAsync("cdn.example.com");
+
+        await cover.ClickAsync();
         await Expect(video).ToHaveAttributeAsync("src", mp4Url);
+        await Expect(cover).ToHaveCountAsync(0);
 
         // No platform thumbnail exists for a direct file, so the fallback video thumb is used
         await Expect(t.Page.Locator(".plugin-media-video-thumb")).ToBeVisibleAsync();
