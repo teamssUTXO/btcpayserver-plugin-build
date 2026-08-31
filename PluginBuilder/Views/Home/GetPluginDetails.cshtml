@@ -153,13 +153,21 @@
                                         }
                                         else if (m.Video is { Kind: VideoPlayerKind.File })
                                         {
+                                            var videoHost = new Uri(m.MediaUrl).Host;
                                             @* No src is rendered: it is assigned from data-video-src on an explicit click, so the
-                                               request to the third party host is always user triggered rather than left to preload heuristics. *@
+                                               request to the third party host is always user triggered rather than left to preload heuristics.
+                                               The cover tells the visitor that the player needs a click and which host it will reach. *@
                                             <video data-video-file data-video-src="@m.MediaUrl" class="plugin-media-video" title="Plugin video"
                                                    controls playsinline preload="none">
                                                 Your browser does not support embedded videos.
                                                 <a href="@m.MediaUrl" rel="noreferrer noopener" target="_blank">Download the video</a>.
                                             </video>
+                                            <button type="button" class="plugin-media-video-cover" data-video-cover
+                                                    aria-label="Play video, loaded from @videoHost">
+                                                <span class="plugin-media-video-cover-icon"><i class="fa fa-play" aria-hidden="true"></i></span>
+                                                <span class="plugin-media-video-cover-text">Play video</span>
+                                                <span class="plugin-media-video-cover-host">Loads from @videoHost</span>
+                                            </button>
                                         }
                                         else
                                         {
@@ -601,11 +609,14 @@
         slides.forEach(s => {
             const video = s.querySelector('video[data-video-file]');
             if (!video || !video.dataset.videoSrc) return;
+            const cover = s.querySelector('[data-video-cover]');
             const load = play => {
+                cover?.remove();
                 if (video.src) return;
                 video.src = video.dataset.videoSrc;
                 if (play) video.play?.().catch(() => { });
             };
+            cover?.addEventListener('click', () => load(true));
             video.addEventListener('click', () => load(true));
             video.addEventListener('keydown', () => load(false));
         });
